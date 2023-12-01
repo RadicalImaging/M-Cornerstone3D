@@ -4,8 +4,8 @@ import voiSyncCallback from './voiSyncCallback';
 import zoomPanSyncCallback from './zoomPanSyncCallback';
 
 export {
-    cameraSyncCallback,
-    stackImageSyncCallback,
-    voiSyncCallback,
-    zoomPanSyncCallback,
+  cameraSyncCallback,
+  stackImageSyncCallback,
+  voiSyncCallback,
+  zoomPanSyncCallback,
 };

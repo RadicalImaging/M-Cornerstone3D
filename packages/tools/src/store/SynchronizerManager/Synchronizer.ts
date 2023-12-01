@@ -18,11 +18,11 @@ class Synchronizer {
   private _enabled: boolean;
   private _eventName: string;
   private _eventHandler: ISynchronizerEventHandler;
-  public _sourceViewports: Array<Types.IViewportId>;
+  private _ignoreFiredEvents: boolean;
+  private _sourceViewports: Array<Types.IViewportId>;
+  private _targetViewports: Array<Types.IViewportId>;
   private _viewportOptions: Record<string, Record<string, unknown>> = {};
   private _options: any;
-  public _targetViewports: Array<Types.IViewportId>;
-  public _ignoreFiredEvents: boolean;
   public id: string;
 
   constructor(
@@ -41,6 +41,10 @@ class Synchronizer {
 
     //
     this.id = synchronizerId;
+  }
+
+  public shouldIgnoreFiredEvents(): boolean {
+    return this._ignoreFiredEvents;
   }
 
   /**
