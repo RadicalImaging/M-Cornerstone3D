@@ -13,7 +13,7 @@ jobs:
   publish-gpr:
     runs-on: ubuntu-latest
     permissions:
-      contents: read|write
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v3
