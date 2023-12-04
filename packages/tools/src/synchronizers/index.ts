@@ -2,12 +2,12 @@ import createCameraPositionSynchronizer from './synchronizers/createCameraPositi
 import createVOISynchronizer from './synchronizers/createVOISynchronizer';
 import createZoomPanSynchronizer from './synchronizers/createZoomPanSynchronizer';
 import createStackImageSynchronizer from './synchronizers/createStackImageSynchronizer';
-import * as callbacks from './callbacks';
+import * as synchronizerCallbacks from './callbacks';
 
 export {
   createCameraPositionSynchronizer,
   createVOISynchronizer,
   createZoomPanSynchronizer,
   createStackImageSynchronizer,
-  callbacks,
+  synchronizerCallbacks,
 };
