@@ -43,6 +43,10 @@ class Synchronizer {
     this.id = synchronizerId;
   }
 
+  public shouldIgnoreFiredEvents(): boolean {
+    return this._ignoreFiredEvents;
+  }
+
   /**
    * "Returns true if the synchronizer is disabled."
    * @returns A boolean value.
@@ -199,7 +203,7 @@ class Synchronizer {
     });
   }
 
-  private fireEvent(sourceViewport: Types.IViewportId, sourceEvent: any): void {
+  public fireEvent(sourceViewport: Types.IViewportId, sourceEvent: any): void {
     if (this.isDisabled() || this._ignoreFiredEvents) {
       return;
     }
@@ -238,7 +242,7 @@ class Synchronizer {
     }
   }
 
-  private _onEvent = (evt: any): void => {
+  public _onEvent(evt: any): void {
     if (this._ignoreFiredEvents === true) {
       return;
     }
