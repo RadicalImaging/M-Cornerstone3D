@@ -2,8 +2,6 @@
 # For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
 
 name: Node.js Package
-permissions:
-  contents: read|write
 on:
   push:
     branches:
@@ -15,7 +13,7 @@ jobs:
   publish-gpr:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read|write
       packages: write
     steps:
       - uses: actions/checkout@v3
