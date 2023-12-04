@@ -1,6 +1,6 @@
 {
   "name": "@radicalimaging/mcornerstone3d-tools",
-  "version": "1.27.5",
+  "version": "1.27.6",
   "description": "Cornerstone3D Tools",
   "main": "src/index.ts",
   "types": "dist/esm/index.d.ts",
@@ -33,7 +33,7 @@
     "webpack:watch": "webpack --mode development --progress --watch  --config ./.webpack/webpack.dev.js"
   },
   "dependencies": {
-    "@radicalimaging/mcornerstone3d-core": "^1.27.4",
+    "@radicalimaging/mcornerstone3d-core": "^1.27.6",
     "lodash.clonedeep": "4.5.0",
     "lodash.get": "^4.4.2"
   },

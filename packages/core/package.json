@@ -1,6 +1,6 @@
 {
   "name": "@radicalimaging/mcornerstone3d-core",
-  "version": "1.27.4",
+  "version": "1.27.6",
   "description": "",
   "main": "src/index.ts",
   "types": "dist/esm/index.d.ts",
