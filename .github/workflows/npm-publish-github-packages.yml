@@ -7,6 +7,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - lerna.json
 
 jobs:
   publish-gpr:
@@ -21,8 +23,9 @@ jobs:
           node-version: 18
           registry-url: https://npm.pkg.github.com/
           scope: radicalimaging
+      - run: lerna version patch --yes
       - run: yarn install --frozen-lockfile
       - run: yarn build
-      - run: lerna publish --loglevel verbose --ignore-scripts --yes --canary --registry "https://npm.pkg.github.com/"
+      - run: lerna publish --loglevel verbose --ignore-scripts --yes --canary --registry "https://npm.pkg.github.com/" --force-publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
