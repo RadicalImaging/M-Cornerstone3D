@@ -1,6 +1,6 @@
 {
     "name": "@radicalimaging/mcornerstone3d-adapters",
-    "version": "1.27.4",
+    "version": "1.27.5",
     "description": "Adapters for Cornerstone3D to/from formats including DICOM SR and others",
     "src": "src/index.ts",
     "main": "./dist/adapters.es.js",
@@ -11,7 +11,6 @@
     "directories": {
         "build": "dist"
     },
-
     "exports": {
         "import": "./dist/adapters.es.js"
     },
@@ -32,7 +31,7 @@
         "type": "git",
         "url": "https://github.com/RadicalImaging/MCornerstone3D.git",
         "directory": "packages/adapters"
-      },
+    },
     "author": "@cornerstonejs (formerly Steve Pieper from dcmjs)",
     "license": "MIT",
     "bugs": {
@@ -50,6 +49,6 @@
     "devDependencies": {
         "@radicalimaging/mcornerstone3d-core": "^1.27.4",
         "@radicalimaging/mcornerstone3d-streaming-image-volume-loader": "^1.27.4",
-        "@radicalimaging/mcornerstone3d-tools": "^1.27.4"
+        "@radicalimaging/mcornerstone3d-tools": "^1.27.5"
     }
 }
