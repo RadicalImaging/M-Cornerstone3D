@@ -1,6 +1,6 @@
 {
     "name": "@radicalimaging/mcornerstone3d-adapters",
-    "version": "1.27.6",
+    "version": "1.27.7",
     "description": "Adapters for Cornerstone3D to/from formats including DICOM SR and others",
     "src": "src/index.ts",
     "main": "./dist/adapters.es.js",
@@ -47,8 +47,8 @@
         "ndarray": "^1.0.19"
     },
     "devDependencies": {
-        "@radicalimaging/mcornerstone3d-core": "^1.27.6",
-        "@radicalimaging/mcornerstone3d-streaming-image-volume-loader": "^1.27.6",
-        "@radicalimaging/mcornerstone3d-tools": "^1.27.6"
+        "@radicalimaging/mcornerstone3d-core": "^1.27.7",
+        "@radicalimaging/mcornerstone3d-streaming-image-volume-loader": "^1.27.7",
+        "@radicalimaging/mcornerstone3d-tools": "^1.27.7"
     }
 }
