@@ -8,19 +8,34 @@ import {
 import { Synchronizer } from '../../store';
 import { jumpToSlice } from '../../utilities';
 import areViewportsCoplanar from './areViewportsCoplanar ';
+import { getSeriesInstanceInformationForViewports } from 'core/src/utilities/calculateViewportsSpatialRegistration';
 
-const getSpatialRegistration = (targetId, sourceId) =>
-  utilities.spatialRegistrationMetadataProvider.get(
+/**
+ * Returns the matrix registered in the spatialRegistrationMetadataProvider
+ * @param targetViewport
+ * @param sourceViewport
+ * @returns
+ */
+function getSpatialRegistration(
+  targetViewport: Types.IStackViewport,
+  sourceViewport: Types.IStackViewport
+): mat4 | undefined {
+  const targetId = targetViewport.id;
+  const sourceId = sourceViewport.id;
+  const { seriesInstanceUID1, seriesInstanceUID2 } =
+    getSeriesInstanceInformationForViewports(targetViewport, sourceViewport);
+  return utilities.spatialRegistrationMetadataProvider.get(
     'spatialRegistrationModule',
-    [targetId, sourceId]
+    [targetId, sourceId, seriesInstanceUID1, seriesInstanceUID2]
   );
+}
 
 /**
  * Synchronizer callback to synchronize the source viewport image to the
  * target viewports closest image in its stack.
  *
  * This synchronizer does a setup (which can already be predefined as required)
- * to register the target and soruce viewports.  The registration will default
+ * to register the target and source viewports.  The registration will default
  * to the identity registration if the same FOR is present in both viewports,
  * unless the option `useInitialPosition` is set in the target viewport.
  *
@@ -75,10 +90,7 @@ export default async function stackImageSyncCallback(
   // if the frame of reference is different we need to use the registrationMetadataProvider
   // and add that to the imagePositionPatient of the source viewport to get the
   // imagePositionPatient of the target viewport's closest image in its stack
-  let registrationMatrixMat4 = getSpatialRegistration(
-    targetViewport.viewportId,
-    sourceViewport.viewportId
-  );
+  let registrationMatrixMat4 = getSpatialRegistration(tViewport, sViewport);
 
   if (!registrationMatrixMat4) {
     const frameOfReferenceUID1 = sViewport.getFrameOfReferenceUID();
@@ -90,10 +102,7 @@ export default async function stackImageSyncCallback(
       registrationMatrixMat4 = mat4.identity(mat4.create());
     } else {
       utilities.calculateViewportsSpatialRegistration(sViewport, tViewport);
-      registrationMatrixMat4 = getSpatialRegistration(
-        targetViewport.viewportId,
-        sourceViewport.viewportId
-      );
+      registrationMatrixMat4 = getSpatialRegistration(tViewport, sViewport);
     }
     if (!registrationMatrixMat4) {
       return;
@@ -125,6 +134,12 @@ export default async function stackImageSyncCallback(
   }
 }
 
+/**
+ * Gets the closest imageId index given a target point position
+ * @param targetPoint
+ * @param imageIds
+ * @returns
+ */
 function _getClosestImageIdIndex(targetPoint, imageIds) {
   // todo: this does not assume orientation yet, but that can be added later
   // todo: handle multiframe images
