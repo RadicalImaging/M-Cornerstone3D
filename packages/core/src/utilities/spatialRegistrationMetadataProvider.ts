@@ -52,6 +52,16 @@ const spatialRegistrationMetadataProvider = {
       return mat4.invert(mat4.create(), state[entryIdReverse]);
     }
   },
+
+  clear: () => {
+    for (const key in state) {
+      delete state[key];
+    }
+
+    for (const key in viewportIdSeriesMapping) {
+      delete viewportIdSeriesMapping[key];
+    }
+  },
 };
 
 addProvider(
