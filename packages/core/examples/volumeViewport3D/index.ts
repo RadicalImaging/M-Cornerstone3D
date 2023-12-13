@@ -1,4 +1,20 @@
+// Load the rendering pieces we want to use (for both WebGL and WebGPU)
+//import '@kitware/vtk.js/favicon';
+
+import '@kitware/vtk.js/Rendering/Profiles/Geometry';
+import '@kitware/vtk.js/Rendering/Profiles/Volume';
+import '@kitware/vtk.js/Rendering/Profiles/Glyph';
+import vtkImplicitPlaneWidget from '@kitware/vtk.js/Widgets/Widgets3D/ImplicitPlaneWidget';
+import vtkWidgetManager from '@kitware/vtk.js/Widgets/Core/WidgetManager';
+import vtkImageCroppingWidget from '@kitware/vtk.js/Widgets/Widgets3D/ImageCroppingWidget';
+import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
+import vtkSphereSource from '@kitware/vtk.js/Filters/Sources/SphereSource';
+import vtkMapper from '@kitware/vtk.js/Rendering/Core/Mapper';
+
+import { initializeCropping, hookVolumeActor } from './croppingFunctions';
+
 import {
+  cache,
   CONSTANTS,
   Enums,
   RenderingEngine,
@@ -13,6 +29,7 @@ import {
   createImageIdsAndCacheMetaData,
   initDemo,
   setTitleAndDescription,
+  addButtonToToolbar,
 } from '../../../../utils/demo/helpers';
 
 // This is for debugging purposes
@@ -22,12 +39,14 @@ console.warn(
 
 const {
   ToolGroupManager,
+  ZoomTool,
   TrackballRotateTool,
   Enums: csToolsEnums,
 } = cornerstoneTools;
 
 const { ViewportType } = Enums;
 const { MouseBindings } = csToolsEnums;
+const { transformWorldToIndex } = utilities;
 
 // Define a unique id for the volume
 let renderingEngine;
@@ -36,6 +55,7 @@ const volumeLoaderScheme = 'cornerstoneStreamingImageVolume'; // Loader id which
 const volumeId = `${volumeLoaderScheme}:${volumeName}`; // VolumeId with loader id + volume id
 const renderingEngineId = 'myRenderingEngine';
 const viewportId = '3D_VIEWPORT';
+const overlay = document.createElement('div');
 
 // ======== Set up page ======== //
 setTitleAndDescription(
@@ -85,7 +105,117 @@ addDropdownToToolbar({
   },
 });
 
+function setupOverlay() {
+  const overlaySize = 15;
+  const overlayBorder = 2;
+  overlay.style.position = 'absolute';
+  overlay.style.width = `${overlaySize}px`;
+  overlay.style.height = `${overlaySize}px`;
+  overlay.style.border = `solid ${overlayBorder}px red`;
+  overlay.style.borderRadius = '50%';
+  overlay.style.left = '-100px';
+  overlay.style.pointerEvents = 'none';
+  document.querySelector('body').appendChild(overlay);
+}
+
+export function createSphereActor(
+  point: number[],
+  radius = 7.0,
+  color = [0.0, 1.0, 0.0]
+): vtkActor {
+  const sphere = vtkSphereSource.newInstance();
+  sphere.setCenter(point[0], point[1], point[2]);
+  sphere.setRadius(radius);
+  const sphereMapper = vtkMapper.newInstance();
+  sphereMapper.setInputConnection(sphere.getOutputPort());
+  const sphereActor = vtkActor.newInstance();
+  sphereActor.setMapper(sphereMapper);
+  sphereActor.getProperty().setColor(color);
+  return sphereActor;
+}
+
 // ============================= //
+addButtonToToolbar({
+  title: 'Get world coordinates',
+  onClick: async () => {
+    const viewport = renderingEngine.getViewport(viewportId);
+    const imageVolume = cache.getVolume(viewport.getDefaultActor().uid);
+    const world = imageVolume.imageData.indexToWorld([0, 256, 512]);
+
+    const renderer = viewport.getRenderer();
+
+    const sphere = createSphereActor(world as number[]);
+    renderer.addActor(sphere);
+
+    const sphere2 = createSphereActor([-124.755859375, -366.255859375, -375.6]);
+    renderer.addActor(sphere2);
+    renderingEngine.render();
+
+    // const volumeActor = viewport.getDefaultActor().actor as Types.VolumeActor;
+    // const imageData = volumeActor.getMapper().getInputData();
+    // const world1 = imageData.imageData.indexToWorld([0, 256, 512]);
+    // alert(world1);
+  },
+});
+
+addButtonToToolbar({
+  title: 'Reset Clipping Range',
+  onClick: async () => {
+    const viewport = renderingEngine.getViewport(viewportId);
+    viewport.resetVolumeViewportClippingRange();
+    renderingEngine.render();
+  },
+});
+
+addButtonToToolbar({
+  title: 'Add crop widget',
+  onClick: async () => {
+    const viewport = renderingEngine.getViewport(viewportId);
+    const renderer = viewport.getRenderer();
+    const renderWindow = viewport
+      .getRenderingEngine()
+      .offscreenMultiRenderWindow.getRenderWindow();
+
+    const volumeActor = viewport.getDefaultActor().actor as Types.VolumeActor;
+
+    setupOverlay();
+    const { widgetManager, widget } = initializeCropping(
+      renderer,
+      renderWindow,
+      overlay
+    );
+    renderingEngine.render();
+    hookVolumeActor(widget, volumeActor, renderer, renderWindow);
+    viewport.resetVolumeViewportClippingRange();
+    renderingEngine.render();
+    renderer.resetCameraClippingRange();
+
+    widget.set({ faceHandlesEnabled: true });
+    widget.set({ edgeHandlesEnabled: true });
+    widget.set({ cornerHandlesEnabled: true });
+
+    renderingEngine.render();
+  },
+});
+
+addButtonToToolbar({
+  title: 'Add widget',
+  onClick: async () => {
+    const widgetManager = vtkWidgetManager.newInstance();
+    const viewport = renderingEngine.getViewport(viewportId);
+    const renderer = viewport.getRenderer();
+    widgetManager.setRenderer(renderer);
+    const widget = vtkImplicitPlaneWidget.newInstance();
+    widget.getWidgetState().setNormal(0, 0, 1);
+    widget.placeWidget([-100, 100, -100, 20, -200, 0]);
+    widget.setPlaceFactor(3);
+    widgetManager.addWidget(widget);
+    renderer.resetCamera();
+    widgetManager.enablePicking();
+    viewport.render();
+    window._widget = widget;
+  },
+});
 
 /**
  * Runs the demo
@@ -98,6 +228,7 @@ async function run() {
 
   // Add tools to Cornerstone3D
   cornerstoneTools.addTool(TrackballRotateTool);
+  cornerstoneTools.addTool(ZoomTool);
 
   // Define a tool group, which defines how mouse events map to tool commands for
   // Any viewport using the group
@@ -107,6 +238,7 @@ async function run() {
   toolGroup.addTool(TrackballRotateTool.toolName, {
     configuration: { volumeId },
   });
+  toolGroup.addTool(ZoomTool.toolName);
 
   // Set the initial state of the tools, here we set one tool active on left click.
   // This means left click will draw that tool.
@@ -118,13 +250,25 @@ async function run() {
     ],
   });
 
+  toolGroup.setToolActive(ZoomTool.toolName, {
+    bindings: [
+      {
+        mouseButton: MouseBindings.Secondary, // Left Click
+      },
+    ],
+  });
+
   // Get Cornerstone imageIds and fetch metadata into RAM
   const imageIds = await createImageIdsAndCacheMetaData({
     StudyInstanceUID:
-      '1.3.6.1.4.1.14519.5.2.1.7009.2403.871108593056125491804754960339',
+      '1.3.6.1.4.1.14519.5.2.1.1706.8374.643249677828306008300337414785',
     SeriesInstanceUID:
-      '1.3.6.1.4.1.14519.5.2.1.7009.2403.367700692008930469189923116409',
-    wadoRsRoot: 'https://domvja9iplmyu.cloudfront.net/dicomweb',
+      '1.3.6.1.4.1.14519.5.2.1.1706.8374.353297340939839941169758740949',
+    wadoRsRoot: 'https://d33do7qe4w26qo.cloudfront.net/dicomweb',
+    // StudyInstanceUID: '6.5019.7618.265578196.4759',
+    // SeriesInstanceUID:
+    //   '1.3.12.2.1107.5.1.4.73030.30000019022606105951500003381',
+    // wadoRsRoot: 'http://localhost/dicom-web',
   });
 
   // Instantiate a rendering engine
