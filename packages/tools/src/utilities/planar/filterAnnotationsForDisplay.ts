@@ -71,7 +71,16 @@ export default function filterAnnotationsForDisplay(
       spacingInNormalDirection
     );
   } else if (viewport instanceof VolumeViewport3D) {
-    return annotations;
+    return annotations.filter((annotation) => {
+      if (!annotation.isVisible) {
+        return false;
+      }
+
+      if (annotation.metadata.toolName !== 'Length3D') {
+        return false;
+      }
+      return true;
+    });
   } else {
     throw new Error(`Viewport Type ${viewport.type} not supported`);
   }
