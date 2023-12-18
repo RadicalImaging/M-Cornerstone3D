@@ -27,6 +27,30 @@ import '@kitware/vtk.js/Rendering/Core/Mapper';
  * @param {*} model The private model to extend.
  */
 function vtkOffscreenMultiRenderWindow(publicAPI, model) {
+  function _getScreenEventPositionFor(source) {
+    // var canvas = model._view.getCanvas();
+    // var bounds = canvas.getBoundingClientRect();
+    const renderers = publicAPI.getRenderers();
+    if (renderers?.length) {
+      const renderer = renderers[0].renderer;
+      const viewportRect = renderer.getViewport();
+      const [canvasWidth, canvasHeight] = model.renderWindow
+        .getViews()[0]
+        .getSize();
+      const position = {
+        x: source.clientX + viewportRect[0] * canvasWidth,
+        y: source.clientY + viewportRect[1] * canvasHeight,
+        z: 0,
+      }; // if multitouch, do not update the current renderer
+
+      // if (pointerCache.size <= 1 || !model.currentRenderer) {
+      //   updateCurrentRenderer(position.x, position.y);
+      // }
+
+      return position;
+    }
+  }
+
   // Capture resize trigger method to remove from publicAPI
   const invokeResize = publicAPI.invokeResize;
   delete publicAPI.invokeResize;
@@ -40,7 +64,9 @@ function vtkOffscreenMultiRenderWindow(publicAPI, model) {
   model.renderWindow.addView(model.openGLRenderWindow);
 
   // Interactor
-  model.interactor = vtkRenderWindowInteractor.newInstance();
+  model.interactor = vtkRenderWindowInteractor.newInstance({
+    _getScreenEventPositionFor,
+  });
   model.interactor.setView(model.openGLRenderWindow);
   model.interactor.initialize();
 
