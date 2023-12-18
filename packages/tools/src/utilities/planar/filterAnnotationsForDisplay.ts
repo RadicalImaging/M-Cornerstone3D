@@ -76,7 +76,7 @@ export default function filterAnnotationsForDisplay(
         return false;
       }
 
-      if (annotation.metadata.toolName !== 'Length3D') {
+      if (annotation.metadata?.toolContext !== '3D') {
         return false;
       }
       return true;

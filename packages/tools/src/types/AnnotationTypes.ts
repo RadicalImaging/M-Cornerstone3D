@@ -47,6 +47,10 @@ type Annotation = {
      * VolumeId of the volume that the tool was configured to work on.
      */
     volumeId?: string;
+    /**
+     * The context of the annotation: 2D or 3D
+     */
+    toolContext?: string;
   };
   /**
    * Data for annotation, Derivatives need to define their own data types.
