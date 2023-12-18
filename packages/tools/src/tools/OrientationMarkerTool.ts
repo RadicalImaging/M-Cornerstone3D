@@ -1,5 +1,5 @@
 import vtkOrientationMarkerWidget from '@kitware/vtk.js/Interaction/Widgets/OrientationMarkerWidget';
-import { Corners } from '@kitware/vtk.js/Interaction/Widgets/OrientationMarkerWidget/Constants';
+import Constants from '@kitware/vtk.js/Interaction/Widgets/OrientationMarkerWidget/Constants';
 import vtkAnnotatedCubeActor from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeActor';
 import vtkAxesActor from '@kitware/vtk.js/Rendering/Core/AxesActor';
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
@@ -10,6 +10,8 @@ import vtkPolyData from '@kitware/vtk.js/Common/DataModel/PolyData';
 import { BaseTool } from './base';
 import { getRenderingEngines } from '@cornerstonejs/core';
 import { filterViewportsWithToolEnabled } from '../utilities/viewportFilters';
+
+const { Corners } = Constants;
 
 const OverlayMarkerType = {
   ANNOTATED_CUBE: 1,

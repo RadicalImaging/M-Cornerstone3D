@@ -42,7 +42,7 @@ module.exports = {
       patterns: [
         {
           from:
-            '../../../node_modules/@cornerstonejs/dicom-image-loader/dist/dynamic-import',
+            '../../../node_modules/@radicalimaging/mcornerstone3d-dicom-image-loader/dist/dynamic-import',
           to: '${destPath.replace(/\\/g, '/')}',
         },
       ],
