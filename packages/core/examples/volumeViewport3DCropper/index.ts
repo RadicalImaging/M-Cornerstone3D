@@ -1,22 +1,21 @@
 // Load the rendering pieces we want to use (for both WebGL and WebGPU)
 //import '@kitware/vtk.js/favicon';
-
+import { getEnabledElement } from '@cornerstonejs/core';
 import '@kitware/vtk.js/Rendering/Profiles/Geometry';
 import '@kitware/vtk.js/Rendering/Profiles/Volume';
 import '@kitware/vtk.js/Rendering/Profiles/Glyph';
-import vtkImplicitPlaneWidget from '@kitware/vtk.js/Widgets/Widgets3D/ImplicitPlaneWidget';
-import vtkWidgetManager from '@kitware/vtk.js/Widgets/Core/WidgetManager';
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import vtkSphereSource from '@kitware/vtk.js/Filters/Sources/SphereSource';
 import vtkMapper from '@kitware/vtk.js/Rendering/Core/Mapper';
+import vtkCellPicker from '@kitware/vtk.js/Rendering/Core/CellPicker';
 
-import { initializeCropping, hookVolumeActor } from './croppingFunctions';
+import { FieldAssociations } from '@kitware/vtk.js/Common/DataModel/DataSet/Constants';
+import { initializeCropping } from './croppingFunctions';
 
 import {
   cache,
   CONSTANTS,
   Enums,
-  getRenderingEngine,
   RenderingEngine,
   setVolumesForViewports,
   Types,
@@ -46,7 +45,6 @@ const {
 
 const { ViewportType } = Enums;
 const { MouseBindings } = csToolsEnums;
-const { transformWorldToIndex } = utilities;
 
 // Define a unique id for the volume
 let renderingEngine;
@@ -55,6 +53,10 @@ const volumeLoaderScheme = 'cornerstoneStreamingImageVolume'; // Loader id which
 const volumeId = `${volumeLoaderScheme}:${volumeName}`; // VolumeId with loader id + volume id
 const renderingEngineId = 'myRenderingEngine';
 const viewportId = '3D_VIEWPORT';
+
+let hardwareSelector;
+const picker = vtkCellPicker.newInstance();
+picker.setPickFromList(0);
 
 // ======== Set up page ======== //
 setTitleAndDescription(
@@ -84,23 +86,6 @@ const instructions = document.createElement('p');
 instructions.innerText = 'Click the image to rotate it.';
 
 content.append(instructions);
-
-addButtonToToolbar({
-  title: 'Apply random rotation',
-  onClick: () => {
-    // Get the rendering engine
-    const renderingEngine = getRenderingEngine(renderingEngineId);
-
-    // Get the volume viewport
-    const viewport = <Types.IVolumeViewport>(
-      renderingEngine.getViewport(viewportId)
-    );
-
-    // Apply the rotation to the camera of the viewport
-    viewport.setProperties({ rotation: Math.random() * 360 });
-    viewport.render();
-  },
-});
 
 addDropdownToToolbar({
   options: {
@@ -137,55 +122,167 @@ export function createSphereActor(
   return sphereActor;
 }
 
+function configureSelector() {
+  const viewport = renderingEngine.getViewport(viewportId);
+  const renderer = viewport.getRenderer();
+  renderer.setDraw(true);
+  const renderWindow = renderer.getRenderWindow();
+  const interactor = renderWindow.getInteractor();
+  const apiSpecificRenderWindow = interactor.getView();
+  hardwareSelector = apiSpecificRenderWindow.getSelector();
+  hardwareSelector.setCaptureZValues(true);
+  hardwareSelector.setFieldAssociation(
+    FieldAssociations.FIELD_ASSOCIATION_CELLS
+  );
+}
+
+function bindEvents() {
+  const viewport = renderingEngine.getViewport(viewportId);
+  const offscreenMultiRenderWindow =
+    viewport.getRenderingEngine().offscreenMultiRenderWindow;
+  offscreenMultiRenderWindow.getInteractor().bindEvents(element1);
+}
+
+async function addCropWidget() {
+  const viewport = renderingEngine.getViewport(viewportId);
+  const renderer = viewport.getRenderer();
+  const renderWindow = viewport
+    .getRenderingEngine()
+    .offscreenMultiRenderWindow.getRenderWindow();
+
+  const volumeActor = viewport.getDefaultActor().actor as Types.VolumeActor;
+
+  const { widgetManager, widget, viewWidget } = initializeCropping(
+    renderer,
+    renderWindow,
+    volumeActor
+  );
+  renderingEngine.render();
+  renderer.resetCameraClippingRange();
+
+  widget.set({
+    faceHandlesEnabled: true,
+    edgeHandlesEnabled: false,
+    cornerHandlesEnabled: false,
+  });
+
+  await renderingEngine.render();
+  await viewport.resetVolumeViewportClippingRange();
+
+  bindEvents();
+  configureSelector();
+}
 // ============================= //
 addButtonToToolbar({
-  title: 'Bind Events',
+  title: 'Add hardware picker',
   onClick: async () => {
-    const viewport = renderingEngine.getViewport(viewportId);
-    const offscreenMultiRenderWindow =
-      viewport.getRenderingEngine().offscreenMultiRenderWindow;
-    offscreenMultiRenderWindow.getInteractor().bindEvents(element1);
+    configureSelector();
   },
 });
 
-addButtonToToolbar({
-  title: 'Reset Clipping Range',
-  onClick: async () => {
-    const viewport = renderingEngine.getViewport(viewportId);
-    viewport.resetVolumeViewportClippingRange();
-    renderingEngine.render();
-  },
-});
+// addButtonToToolbar({
+//   title: 'Get world coordinates',
+//   onClick: async () => {
+//     const viewport = renderingEngine.getViewport(viewportId);
+//     const renderer = viewport.getRenderer();
+//     const imageVolume = cache.getVolume(viewport.getDefaultActor().uid);
 
-addButtonToToolbar({
-  title: 'Add crop widget',
-  onClick: async () => {
-    const viewport = renderingEngine.getViewport(viewportId);
-    const renderer = viewport.getRenderer();
-    const renderWindow = viewport
-      .getRenderingEngine()
-      .offscreenMultiRenderWindow.getRenderWindow();
+//     const midX = imageVolume.dimensions[0] / 2;
+//     const midY = imageVolume.dimensions[1] / 2;
+//     const midZ = imageVolume.dimensions[2] / 2;
 
-    const volumeActor = viewport.getDefaultActor().actor as Types.VolumeActor;
+//     let world = imageVolume.imageData.indexToWorld([midX, midY, 0]);
+//     let sphere = createSphereActor(world as number[]);
+//     renderer.addActor(sphere);
 
-    const { widgetManager, widget, viewWidget } = initializeCropping(
-      renderer,
-      renderWindow,
-      volumeActor
-    );
-    renderingEngine.render();
-    renderer.resetCameraClippingRange();
+//     world = imageVolume.imageData.indexToWorld([midX, midY, midZ * 2]);
+//     sphere = createSphereActor(world as number[]);
+//     renderer.addActor(sphere);
 
-    widget.set({
-      faceHandlesEnabled: true,
-      edgeHandlesEnabled: false,
-      cornerHandlesEnabled: true,
-    });
+//     renderingEngine.render();
+//   },
+// });
 
-    renderingEngine.render();
-    viewport.resetVolumeViewportClippingRange();
-  },
-});
+// addButtonToToolbar({
+//   title: 'Bind Events',
+//   onClick: async () => {
+//     bindEvents();
+//   },
+// });
+
+// addButtonToToolbar({
+//   title: 'Add crop widget',
+//   onClick: async () => {
+//     addCropWidget();
+//   },
+// });
+
+function mouseDown(evt) {
+  const element = evt.currentTarget;
+  const enabledElement = getEnabledElement(element);
+  const { viewport } = enabledElement as Types.IEnabledElement;
+  const canvasCoords = [evt.offsetX, evt.offsetY];
+  const position = convertCanvasToVTK(element, canvasCoords);
+  const renderer = viewport.getRenderer();
+  renderer.setDraw(true);
+  if (false) {
+    picker.pick(position, renderer);
+    if (picker.getActors().length) {
+      console.log('Got an actor (Picker)');
+    }
+  } else if (hardwareSelector) {
+    hardwareSelector
+      .getSourceDataAsync(
+        renderer,
+        position[0],
+        position[1],
+        position[0],
+        position[1]
+      )
+      .then((result) => {
+        if (result) {
+          const selection = result.generateSelection(
+            position[0],
+            position[1],
+            position[0],
+            position[1]
+          );
+          if (selection.length > 0) {
+            console.log('Got an actor (hardware Selector)');
+          }
+        }
+      });
+  }
+}
+
+/**
+ * Convert canvas coordinates to VTK screen coordinates
+ * @param evt mouse event information
+ * @returns VTKCoords vtk converted coordinate
+ */
+function convertCanvasToVTK(element, canvasCoords) {
+  const enabledElement = getEnabledElement(element);
+  const { viewport } = enabledElement as Types.IEnabledElement;
+
+  const renderWindow = viewport
+    .getRenderingEngine()
+    .offscreenMultiRenderWindow.getRenderWindow();
+
+  const bounds = element.getBoundingClientRect();
+  const [canvasWidth, canvasHeight] = renderWindow.getViews()[0].getSize();
+  // get the rectangle coordinates [x1, y1, x2, y2] of the current 3D scenario view.
+  // The coordinates are percentages of the size of the view [canvasWidth, canvasHeight]
+  // i.e. [0.25, 0, 1, 1] -> [0.25 * canvasWidth, 0, canvasWidth, canvasHeight]
+  const viewport3D = viewport.getRenderer().getViewport();
+  const offset = [canvasWidth * viewport3D[0], canvasHeight * viewport3D[1]];
+
+  const position = [
+    canvasCoords[0] + offset[0],
+    bounds.height - (canvasCoords[1] + offset[1]),
+    0,
+  ];
+  return position;
+}
 
 /**
  * Runs the demo
@@ -283,11 +380,13 @@ async function run() {
       );
 
       viewport.render();
+      addCropWidget();
     }
   );
 
   const viewport = renderingEngine.getViewport(viewportId);
   renderingEngine.render();
+  element1.addEventListener('mousedown', mouseDown);
 }
 
 run();

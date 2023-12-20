@@ -2,7 +2,6 @@ import { vec3, quat, mat4 } from 'gl-matrix';
 import vtkWidgetManager from '@kitware/vtk.js/Widgets/Core/WidgetManager';
 import vtkImageCroppingWidget from '@kitware/vtk.js/Widgets/Widgets3D/ImageCroppingWidget';
 import vtkPlane from '@kitware/vtk.js/Common/DataModel/Plane';
-import { volumeLoader } from '@cornerstonejs/core';
 
 const overlaySize = 15;
 const overlayBorder = 2;
@@ -72,17 +71,20 @@ export function initializeCropping(renderer, renderWindow, volumeActor) {
   setupOverlay();
   const widgetManager = vtkWidgetManager.newInstance();
   widgetManager.setRenderer(renderer);
+  const interactor = renderWindow.getInteractor();
+  const apiSpecificRenderWindow = interactor.getView();
 
   const widget = vtkImageCroppingWidget.newInstance();
 
   function widgetRegistration(e = undefined) {
     const action = e ? e.currentTarget.dataset.action : 'addWidget';
     const viewWidget = widgetManager[action](widget);
+    renderer.setDraw(true);
     if (viewWidget) {
       viewWidget.setDisplayCallback((coords) => {
         overlay.style.left = '-100px';
         if (coords) {
-          const [w, h] = renderWindow.getSize();
+          const [w, h] = apiSpecificRenderWindow.getSize();
           overlay.style.left = `${Math.round(
             (coords[0][0] / w) * window.innerWidth -
               overlaySize * 0.5 -

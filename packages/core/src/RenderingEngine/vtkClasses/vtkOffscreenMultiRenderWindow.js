@@ -28,8 +28,6 @@ import '@kitware/vtk.js/Rendering/Core/Mapper';
  */
 function vtkOffscreenMultiRenderWindow(publicAPI, model) {
   function _getScreenEventPositionFor(source) {
-    // var canvas = model._view.getCanvas();
-    // var bounds = canvas.getBoundingClientRect();
     const renderers = publicAPI.getRenderers();
     if (renderers?.length) {
       const renderer = renderers[0].renderer;
@@ -38,14 +36,10 @@ function vtkOffscreenMultiRenderWindow(publicAPI, model) {
         .getViews()[0]
         .getSize();
       const position = {
-        x: source.clientX + viewportRect[0] * canvasWidth,
-        y: source.clientY + viewportRect[1] * canvasHeight,
+        x: source.offsetX + viewportRect[0] * canvasWidth,
+        y: canvasHeight - (source.offsetY + viewportRect[1] * canvasHeight),
         z: 0,
-      }; // if multitouch, do not update the current renderer
-
-      // if (pointerCache.size <= 1 || !model.currentRenderer) {
-      //   updateCurrentRenderer(position.x, position.y);
-      // }
+      };
 
       return position;
     }
