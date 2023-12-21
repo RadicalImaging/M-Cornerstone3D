@@ -71,7 +71,9 @@ export default function filterAnnotationsForDisplay(
       spacingInNormalDirection
     );
   } else if (viewport instanceof VolumeViewport3D) {
-    return annotations;
+    return annotations.filter((annotation) => {
+      return annotation.metadata?.toolContext?.toUpperCase() === '3D';
+    });
   } else {
     throw new Error(`Viewport Type ${viewport.type} not supported`);
   }
