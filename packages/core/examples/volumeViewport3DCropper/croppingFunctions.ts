@@ -103,7 +103,6 @@ export function initializeCropping(renderer, renderWindow, volumeActor) {
     }
     widgetManager.enablePicking();
     renderWindow.render();
-    return { widgetManager, widget };
   }
   widgetRegistration();
   const viewWidget = widgetManager['addWidget'](widget);

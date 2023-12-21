@@ -168,10 +168,8 @@ async function addCropWidget() {
 
   await renderingEngine.render();
   await viewport.resetVolumeViewportClippingRange();
-
-  bindEvents();
-  configureSelector();
 }
+
 // ============================= //
 addButtonToToolbar({
   title: 'Add hardware picker',
@@ -180,42 +178,42 @@ addButtonToToolbar({
   },
 });
 
-// addButtonToToolbar({
-//   title: 'Get world coordinates',
-//   onClick: async () => {
-//     const viewport = renderingEngine.getViewport(viewportId);
-//     const renderer = viewport.getRenderer();
-//     const imageVolume = cache.getVolume(viewport.getDefaultActor().uid);
+addButtonToToolbar({
+  title: 'Get world coordinates',
+  onClick: async () => {
+    const viewport = renderingEngine.getViewport(viewportId);
+    const renderer = viewport.getRenderer();
+    const imageVolume = cache.getVolume(viewport.getDefaultActor().uid);
 
-//     const midX = imageVolume.dimensions[0] / 2;
-//     const midY = imageVolume.dimensions[1] / 2;
-//     const midZ = imageVolume.dimensions[2] / 2;
+    const midX = imageVolume.dimensions[0] / 2;
+    const midY = imageVolume.dimensions[1] / 2;
+    const midZ = imageVolume.dimensions[2] / 2;
 
-//     let world = imageVolume.imageData.indexToWorld([midX, midY, 0]);
-//     let sphere = createSphereActor(world as number[]);
-//     renderer.addActor(sphere);
+    let world = imageVolume.imageData.indexToWorld([midX, midY, 0]);
+    let sphere = createSphereActor(world as number[]);
+    renderer.addActor(sphere);
 
-//     world = imageVolume.imageData.indexToWorld([midX, midY, midZ * 2]);
-//     sphere = createSphereActor(world as number[]);
-//     renderer.addActor(sphere);
+    world = imageVolume.imageData.indexToWorld([midX, midY, midZ * 2]);
+    sphere = createSphereActor(world as number[]);
+    renderer.addActor(sphere);
 
-//     renderingEngine.render();
-//   },
-// });
+    renderingEngine.render();
+  },
+});
 
-// addButtonToToolbar({
-//   title: 'Bind Events',
-//   onClick: async () => {
-//     bindEvents();
-//   },
-// });
+addButtonToToolbar({
+  title: 'Bind Events',
+  onClick: async () => {
+    bindEvents();
+  },
+});
 
-// addButtonToToolbar({
-//   title: 'Add crop widget',
-//   onClick: async () => {
-//     addCropWidget();
-//   },
-// });
+addButtonToToolbar({
+  title: 'Add crop widget',
+  onClick: async () => {
+    addCropWidget();
+  },
+});
 
 function mouseDown(evt) {
   const element = evt.currentTarget;
@@ -328,9 +326,13 @@ async function run() {
   // Get Cornerstone imageIds and fetch metadata into RAM
   const imageIds = await createImageIdsAndCacheMetaData({
     StudyInstanceUID:
-      '1.3.6.1.4.1.14519.5.2.1.1706.8374.643249677828306008300337414785',
+      //'1.3.6.1.4.1.14519.5.2.1.1706.8374.643249677828306008300337414785',
+      //'1.3.6.1.4.1.25403.345050719074.3824.20170125095258.1',
+      '2.16.840.1.114362.1.11972228.22789312658.616067305.306.2',
     SeriesInstanceUID:
-      '1.3.6.1.4.1.14519.5.2.1.1706.8374.353297340939839941169758740949',
+      //'1.3.6.1.4.1.14519.5.2.1.1706.8374.353297340939839941169758740949',
+      //'1.3.6.1.4.1.25403.345050719074.3824.20170125095258.7',
+      '2.16.840.1.114362.1.11972228.22789312658.616067305.306.3',
     wadoRsRoot: 'https://d33do7qe4w26qo.cloudfront.net/dicomweb',
     // StudyInstanceUID: '6.5019.7618.265578196.4759',
     // SeriesInstanceUID:
@@ -380,13 +382,12 @@ async function run() {
       );
 
       viewport.render();
-      addCropWidget();
     }
   );
 
   const viewport = renderingEngine.getViewport(viewportId);
   renderingEngine.render();
-  element1.addEventListener('mousedown', mouseDown);
+  //element1.addEventListener('mousedown', mouseDown);
 }
 
 run();
