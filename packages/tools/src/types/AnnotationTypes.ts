@@ -48,7 +48,7 @@ type Annotation = {
      */
     volumeId?: string;
     /**
-     * The context of the annotation: 2D or 3D
+     * The context of the annotation: 2D or 3D. If empty it will be considered as 2d context
      */
     toolContext?: string;
   };

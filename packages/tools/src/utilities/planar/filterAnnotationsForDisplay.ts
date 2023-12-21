@@ -72,14 +72,7 @@ export default function filterAnnotationsForDisplay(
     );
   } else if (viewport instanceof VolumeViewport3D) {
     return annotations.filter((annotation) => {
-      if (!annotation.isVisible) {
-        return false;
-      }
-
-      if (annotation.metadata?.toolContext !== '3D') {
-        return false;
-      }
-      return true;
+      return annotation.metadata?.toolContext?.toUpperCase() === '3D';
     });
   } else {
     throw new Error(`Viewport Type ${viewport.type} not supported`);
