@@ -13,6 +13,7 @@ class TrackballRotateTool extends BaseTool {
   static toolName;
   touchDragCallback: (evt: EventTypes.InteractionEventType) => void;
   mouseDragCallback: (evt: EventTypes.InteractionEventType) => void;
+  private composedTransformation;
 
   constructor(
     toolProps: PublicToolProps = {},
@@ -47,6 +48,24 @@ class TrackballRotateTool extends BaseTool {
       -centerWorld[1],
       -centerWorld[2],
     ]);
+
+    mat4.translate(
+      this.composedTransformation,
+      this.composedTransformation,
+      centerWorld
+    );
+    mat4.rotate(
+      this.composedTransformation,
+      this.composedTransformation,
+      angle,
+      axis
+    );
+    mat4.translate(this.composedTransformation, this.composedTransformation, [
+      -centerWorld[0],
+      -centerWorld[1],
+      -centerWorld[2],
+    ]);
+
     vec3.transformMat4(newPosition, position, transform);
     vec3.transformMat4(newFocalPoint, focalPoint, transform);
 
@@ -124,6 +143,7 @@ class TrackballRotateTool extends BaseTool {
       vtkMath.normalize(forwardV);
       vtkMath.normalize(upVec);
 
+      this.composedTransformation = mat4.identity(new Float32Array(16));
       this.rotateCamera(viewport, centerWorld, forwardV, angleX);
 
       const angleY =
@@ -132,7 +152,12 @@ class TrackballRotateTool extends BaseTool {
 
       this.rotateCamera(viewport, centerWorld, rightV, angleY);
 
-      viewport.render();
+      viewport.lastTransformation = mat4.clone(this.composedTransformation);
+      if (viewport?.updateRotation) {
+        viewport.updateRotation();
+      } else {
+        viewport.render();
+      }
     }
   }
 }

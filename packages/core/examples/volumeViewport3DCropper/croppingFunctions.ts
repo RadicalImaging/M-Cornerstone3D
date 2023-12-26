@@ -21,7 +21,14 @@ export function setupOverlay() {
   document.querySelector('body').appendChild(overlay);
 }
 
-export function getCroppingPlanes(imageData, ijkPlanes) {
+export function getCroppingPlanes(viewport, imageData, ijkPlanes) {
+  let transform;
+  if (viewport?.lastTransformation) {
+    transform = viewport.lastTransformation;
+  } else {
+    transform = mat4.identity(new Float32Array(16));
+  }
+
   const rotation = quat.create();
   mat4.getRotation(rotation, imageData.getIndexToWorld());
 
@@ -31,35 +38,91 @@ export function getCroppingPlanes(imageData, ijkPlanes) {
     return out;
   };
 
+  const rotateNormal = (vec) => {
+    const out = [0, 0, 0];
+    vec3.transformMat4(out, vec, transform);
+    return out;
+  };
+
   const [iMin, iMax, jMin, jMax, kMin, kMax] = ijkPlanes;
-  const origin = imageData.indexToWorld([iMin, jMin, kMin]);
-  // opposite corner from origin
-  const corner = imageData.indexToWorld([iMax, jMax, kMax]);
+  const xMiddle = (iMax - iMin) / 2;
+  const yMiddle = (jMax - jMin) / 2;
+  const zMiddle = (kMax - kMin) / 2;
+
+  const planeMiddlePoints = [
+    rotateNormal(imageData.indexToWorld([iMin, yMiddle, zMiddle])),
+    rotateNormal(imageData.indexToWorld([iMax, yMiddle, zMiddle])),
+    rotateNormal(imageData.indexToWorld([xMiddle, jMin, zMiddle])),
+    rotateNormal(imageData.indexToWorld([xMiddle, jMax, zMiddle])),
+    rotateNormal(imageData.indexToWorld([xMiddle, yMiddle, kMin])),
+    rotateNormal(imageData.indexToWorld([xMiddle, yMiddle, kMax])),
+  ];
+
   return [
     // X min/max
-    vtkPlane.newInstance({ normal: rotateVec([1, 0, 0]), origin }),
-    vtkPlane.newInstance({ normal: rotateVec([-1, 0, 0]), origin: corner }),
+    vtkPlane.newInstance({
+      normal: rotateVec([1, 0, 0]),
+      origin: planeMiddlePoints[0],
+    }),
+    vtkPlane.newInstance({
+      normal: rotateVec([-1, 0, 0]),
+      origin: planeMiddlePoints[1],
+    }),
     // Y min/max
-    vtkPlane.newInstance({ normal: rotateVec([0, 1, 0]), origin }),
-    vtkPlane.newInstance({ normal: rotateVec([0, -1, 0]), origin: corner }),
+    vtkPlane.newInstance({
+      normal: rotateVec([0, 1, 0]),
+      origin: planeMiddlePoints[2],
+    }),
+    vtkPlane.newInstance({
+      normal: rotateVec([0, -1, 0]),
+      origin: planeMiddlePoints[3],
+    }),
     // X min/max
-    vtkPlane.newInstance({ normal: rotateVec([0, 0, 1]), origin }),
-    vtkPlane.newInstance({ normal: rotateVec([0, 0, -1]), origin: corner }),
+    vtkPlane.newInstance({
+      normal: rotateVec([0, 0, 1]),
+      origin: planeMiddlePoints[4],
+    }),
+    vtkPlane.newInstance({
+      normal: rotateVec([0, 0, -1]),
+      origin: planeMiddlePoints[5],
+    }),
   ];
 }
 
-export function hookVolumeActor(widget, volumeActor, renderer, renderWindow) {
+export function updateClippingPlanes(viewport, givenPlanes = []) {
+  const renderer = viewport.getRenderer();
+  const renderWindow = viewport
+    .getRenderingEngine()
+    .offscreenMultiRenderWindow.getRenderWindow();
+  const volumeActor = viewport.getDefaultActor().actor;
+  const mapper = volumeActor.getMapper();
+  const image = mapper.getInputData();
+  const planes = getCroppingPlanes(viewport, image, givenPlanes);
+  mapper.removeAllClippingPlanes();
+  planes.forEach((plane) => {
+    mapper.addClippingPlane(plane);
+  });
+  mapper.modified();
+  renderWindow.render();
+  setTimeout(() => {
+    viewport.render();
+    setTimeout(() => {
+      renderer.setDraw(true);
+    }, 0);
+  }, 0);
+}
+
+export function hookVolumeActor(widget, viewport) {
+  const renderWindow = viewport
+    .getRenderingEngine()
+    .offscreenMultiRenderWindow.getRenderWindow();
+  const volumeActor = viewport.getDefaultActor().actor;
   const mapper = volumeActor.getMapper();
   const image = mapper.getInputData();
   widget.copyImageDataDescription(image);
   const cropState = widget.getWidgetState().getCroppingPlanes();
   cropState.onModified(() => {
-    const planes = getCroppingPlanes(image, cropState.getPlanes());
-    mapper.removeAllClippingPlanes();
-    planes.forEach((plane) => {
-      mapper.addClippingPlane(plane);
-    });
-    mapper.modified();
+    updateClippingPlanes(viewport, cropState.getPlanes());
   });
 
   mapper.removeAllClippingPlanes();
@@ -67,7 +130,11 @@ export function hookVolumeActor(widget, volumeActor, renderer, renderWindow) {
   widget.set({ visibility: true });
 }
 
-export function initializeCropping(renderer, renderWindow, volumeActor) {
+export function initializeCropping(viewport) {
+  const renderer = viewport.getRenderer();
+  const renderWindow = viewport
+    .getRenderingEngine()
+    .offscreenMultiRenderWindow.getRenderWindow();
   setupOverlay();
   const widgetManager = vtkWidgetManager.newInstance();
   widgetManager.setRenderer(renderer);
@@ -97,9 +164,6 @@ export function initializeCropping(renderer, renderWindow, volumeActor) {
           )}px`;
         }
       });
-
-      renderer.resetCamera();
-      renderer.resetCameraClippingRange();
     }
     widgetManager.enablePicking();
     renderWindow.render();
@@ -108,7 +172,7 @@ export function initializeCropping(renderer, renderWindow, volumeActor) {
   const viewWidget = widgetManager['addWidget'](widget);
   viewWidget.setScaleInPixels(false);
 
-  hookVolumeActor(widget, volumeActor, renderer, renderWindow);
+  hookVolumeActor(widget, viewport);
 
   return { widgetManager, widget, viewWidget };
 }

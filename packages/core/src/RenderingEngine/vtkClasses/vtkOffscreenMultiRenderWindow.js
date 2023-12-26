@@ -35,9 +35,24 @@ function vtkOffscreenMultiRenderWindow(publicAPI, model) {
       const [canvasWidth, canvasHeight] = model.renderWindow
         .getViews()[0]
         .getSize();
+
+      const offset = [
+        canvasWidth * viewportRect[0],
+        canvasHeight * viewportRect[1],
+      ];
+
+      // calculate the scale between the canvas and the viewport
+      const actualCanvasSize = [
+        canvasWidth * (viewportRect[2] - viewportRect[0]),
+        canvasHeight * (viewportRect[3] - viewportRect[1]),
+      ];
+      const scaleX = actualCanvasSize[0] / canvasWidth;
+      const scaleY = actualCanvasSize[1] / canvasHeight;
+
+      // calculate the proper VTK screen coordinate
       const position = {
-        x: source.offsetX + viewportRect[0] * canvasWidth,
-        y: canvasHeight - (source.offsetY + viewportRect[1] * canvasHeight),
+        x: source.offsetX * scaleX + offset[0],
+        y: (canvasHeight - (source.offsetY + offset[1])) * scaleY,
         z: 0,
       };
 

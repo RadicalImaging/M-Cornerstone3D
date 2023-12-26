@@ -10,7 +10,7 @@ import vtkMapper from '@kitware/vtk.js/Rendering/Core/Mapper';
 import vtkCellPicker from '@kitware/vtk.js/Rendering/Core/CellPicker';
 
 import { FieldAssociations } from '@kitware/vtk.js/Common/DataModel/DataSet/Constants';
-import { initializeCropping } from './croppingFunctions';
+import { initializeCropping, updateClippingPlanes } from './croppingFunctions';
 
 import {
   cache,
@@ -53,6 +53,7 @@ const volumeLoaderScheme = 'cornerstoneStreamingImageVolume'; // Loader id which
 const volumeId = `${volumeLoaderScheme}:${volumeName}`; // VolumeId with loader id + volume id
 const renderingEngineId = 'myRenderingEngine';
 const viewportId = '3D_VIEWPORT';
+let widget;
 
 let hardwareSelector;
 const picker = vtkCellPicker.newInstance();
@@ -152,14 +153,15 @@ async function addCropWidget() {
 
   const volumeActor = viewport.getDefaultActor().actor as Types.VolumeActor;
 
-  const { widgetManager, widget, viewWidget } = initializeCropping(
-    renderer,
-    renderWindow,
-    volumeActor
-  );
+  const {
+    widgetManager,
+    widget: createdWidget,
+    viewWidget,
+  } = initializeCropping(viewport);
   renderingEngine.render();
   renderer.resetCameraClippingRange();
 
+  widget = createdWidget;
   widget.set({
     faceHandlesEnabled: true,
     edgeHandlesEnabled: false,
@@ -174,30 +176,38 @@ async function addCropWidget() {
 addButtonToToolbar({
   title: 'Add hardware picker',
   onClick: async () => {
-    configureSelector();
+    //configureSelector();
+    const viewport = renderingEngine.getViewport(viewportId);
+    const renderer = viewport.getRenderer();
+    renderer.setDraw(true);
   },
 });
 
 addButtonToToolbar({
-  title: 'Get world coordinates',
+  title: 'Update Actor',
   onClick: async () => {
+    // const renderer = viewport.getRenderer();
+    // const imageVolume = cache.getVolume(viewport.getDefaultActor().uid);
+
+    // const midX = imageVolume.dimensions[0] / 2;
+    // const midY = imageVolume.dimensions[1] / 2;
+    // const midZ = imageVolume.dimensions[2] / 2;
+
+    // let world = imageVolume.imageData.indexToWorld([midX, midY, 0]);
+    // let sphere = createSphereActor(world as number[]);
+    // renderer.addActor(sphere);
+
+    // world = imageVolume.imageData.indexToWorld([midX, midY, midZ * 2]);
+    // sphere = createSphereActor(world as number[]);
+    // renderer.addActor(sphere);
+
     const viewport = renderingEngine.getViewport(viewportId);
-    const renderer = viewport.getRenderer();
-    const imageVolume = cache.getVolume(viewport.getDefaultActor().uid);
-
-    const midX = imageVolume.dimensions[0] / 2;
-    const midY = imageVolume.dimensions[1] / 2;
-    const midZ = imageVolume.dimensions[2] / 2;
-
-    let world = imageVolume.imageData.indexToWorld([midX, midY, 0]);
-    let sphere = createSphereActor(world as number[]);
-    renderer.addActor(sphere);
-
-    world = imageVolume.imageData.indexToWorld([midX, midY, midZ * 2]);
-    sphere = createSphereActor(world as number[]);
-    renderer.addActor(sphere);
-
-    renderingEngine.render();
+    if (!viewport?.updateRotation) {
+      viewport.updateRotation = () => {
+        const cropState = widget.getWidgetState().getCroppingPlanes();
+        updateClippingPlanes(viewport, cropState.getPlanes());
+      };
+    }
   },
 });
 
@@ -310,7 +320,7 @@ async function run() {
   toolGroup.setToolActive(TrackballRotateTool.toolName, {
     bindings: [
       {
-        mouseButton: MouseBindings.Primary, // Left Click
+        mouseButton: MouseBindings.Auxiliary, // Left Click
       },
     ],
   });
