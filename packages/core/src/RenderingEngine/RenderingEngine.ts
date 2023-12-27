@@ -83,6 +83,7 @@ class RenderingEngine implements IRenderingEngine {
   private _animationFrameSet = false;
   private _animationFrameHandle: number | null = null;
   private useCPURendering: boolean;
+  private continuousDrawing = false;
 
   /**
    * @param uid - Unique identifier for RenderingEngine
@@ -112,6 +113,9 @@ class RenderingEngine implements IRenderingEngine {
     this.hasBeenDestroyed = false;
   }
 
+  public changeContinuousDrawingState(newState: boolean) {
+    this.continuousDrawing = newState;
+  }
   /**
    * Enables the requested viewport and add it to the viewports. It will
    * properly create the Stack viewport or Volume viewport:
@@ -1181,9 +1185,9 @@ class RenderingEngine implements IRenderingEngine {
 
     renderWindow.render();
 
-    // After redraw we set all renderers to not render until necessary
+    // After redraw we set all renderers to the value of the continuos drawing variable
     for (let i = 0; i < renderers.length; i++) {
-      renderers[i].renderer.setDraw(false);
+      renderers[i].renderer.setDraw(this.continuousDrawing);
     }
   }
 

@@ -1,11 +1,25 @@
+// Load the rendering pieces we want to use (for both WebGL and WebGPU)
+import '@kitware/vtk.js/Rendering/Profiles/Geometry';
+import '@kitware/vtk.js/Rendering/Profiles/Volume';
+import '@kitware/vtk.js/Rendering/Profiles/Glyph';
+
 import { vec3, quat, mat4 } from 'gl-matrix';
+import { Enums } from '@cornerstonejs/core';
 import vtkWidgetManager from '@kitware/vtk.js/Widgets/Core/WidgetManager';
 import vtkImageCroppingWidget from '@kitware/vtk.js/Widgets/Widgets3D/ImageCroppingWidget';
 import vtkPlane from '@kitware/vtk.js/Common/DataModel/Plane';
+import { Vector3 } from '@kitware/vtk.js/types';
+import getRenderingEngine from '../../src/RenderingEngine/getRenderingEngine';
 
 const overlaySize = 15;
 const overlayBorder = 2;
 let overlay;
+
+export function bindEvents(viewport) {
+  const offscreenMultiRenderWindow =
+    viewport.getRenderingEngine().offscreenMultiRenderWindow;
+  offscreenMultiRenderWindow.getInteractor().bindEvents(viewport.element);
+}
 
 export function setupOverlay() {
   overlay = document.createElement('div');
@@ -21,28 +35,18 @@ export function setupOverlay() {
   document.querySelector('body').appendChild(overlay);
 }
 
-export function getCroppingPlanes(viewport, imageData, ijkPlanes) {
-  let transform;
-  if (viewport?.lastTransformation) {
-    transform = viewport.lastTransformation;
-  } else {
-    transform = mat4.identity(new Float32Array(16));
+export function getCroppingPlanes(imageData, ijkPlanes) {
+  if (!ijkPlanes?.length) {
+    return [];
   }
-
   const rotation = quat.create();
   mat4.getRotation(rotation, imageData.getIndexToWorld());
 
-  const rotateVec = (vec) => {
-    const out = [0, 0, 0];
+  function rotateNormal(vec): Vector3 {
+    const out = [0, 0, 0] as vec3;
     vec3.transformQuat(out, vec, rotation);
-    return out;
-  };
-
-  const rotateNormal = (vec) => {
-    const out = [0, 0, 0];
-    vec3.transformMat4(out, vec, transform);
-    return out;
-  };
+    return out as Vector3;
+  }
 
   const [iMin, iMax, jMin, jMax, kMin, kMax] = ijkPlanes;
   const xMiddle = (iMax - iMin) / 2;
@@ -50,83 +54,76 @@ export function getCroppingPlanes(viewport, imageData, ijkPlanes) {
   const zMiddle = (kMax - kMin) / 2;
 
   const planeMiddlePoints = [
-    rotateNormal(imageData.indexToWorld([iMin, yMiddle, zMiddle])),
-    rotateNormal(imageData.indexToWorld([iMax, yMiddle, zMiddle])),
-    rotateNormal(imageData.indexToWorld([xMiddle, jMin, zMiddle])),
-    rotateNormal(imageData.indexToWorld([xMiddle, jMax, zMiddle])),
-    rotateNormal(imageData.indexToWorld([xMiddle, yMiddle, kMin])),
-    rotateNormal(imageData.indexToWorld([xMiddle, yMiddle, kMax])),
+    imageData.indexToWorld([iMin, yMiddle, zMiddle]),
+    imageData.indexToWorld([iMax, yMiddle, zMiddle]),
+    imageData.indexToWorld([xMiddle, jMin, zMiddle]),
+    imageData.indexToWorld([xMiddle, jMax, zMiddle]),
+    imageData.indexToWorld([xMiddle, yMiddle, kMin]),
+    imageData.indexToWorld([xMiddle, yMiddle, kMax]),
   ];
 
   return [
     // X min/max
     vtkPlane.newInstance({
-      normal: rotateVec([1, 0, 0]),
+      normal: rotateNormal([1, 0, 0]),
       origin: planeMiddlePoints[0],
     }),
     vtkPlane.newInstance({
-      normal: rotateVec([-1, 0, 0]),
+      normal: rotateNormal([-1, 0, 0]),
       origin: planeMiddlePoints[1],
     }),
     // Y min/max
     vtkPlane.newInstance({
-      normal: rotateVec([0, 1, 0]),
+      normal: rotateNormal([0, 1, 0]),
       origin: planeMiddlePoints[2],
     }),
     vtkPlane.newInstance({
-      normal: rotateVec([0, -1, 0]),
+      normal: rotateNormal([0, -1, 0]),
       origin: planeMiddlePoints[3],
     }),
     // X min/max
     vtkPlane.newInstance({
-      normal: rotateVec([0, 0, 1]),
+      normal: rotateNormal([0, 0, 1]),
       origin: planeMiddlePoints[4],
     }),
     vtkPlane.newInstance({
-      normal: rotateVec([0, 0, -1]),
+      normal: rotateNormal([0, 0, -1]),
       origin: planeMiddlePoints[5],
     }),
   ];
 }
 
-export function updateClippingPlanes(viewport, givenPlanes = []) {
-  const renderer = viewport.getRenderer();
-  const renderWindow = viewport
-    .getRenderingEngine()
-    .offscreenMultiRenderWindow.getRenderWindow();
+export function updateCroppingPlanes(viewport, givenPlanes = []) {
   const volumeActor = viewport.getDefaultActor().actor;
   const mapper = volumeActor.getMapper();
   const image = mapper.getInputData();
-  const planes = getCroppingPlanes(viewport, image, givenPlanes);
+  const planes = getCroppingPlanes(image, givenPlanes);
   mapper.removeAllClippingPlanes();
   planes.forEach((plane) => {
     mapper.addClippingPlane(plane);
   });
   mapper.modified();
-  renderWindow.render();
-  setTimeout(() => {
-    viewport.render();
-    setTimeout(() => {
-      renderer.setDraw(true);
-    }, 0);
-  }, 0);
 }
 
 export function hookVolumeActor(widget, viewport) {
-  const renderWindow = viewport
-    .getRenderingEngine()
-    .offscreenMultiRenderWindow.getRenderWindow();
+  const renderer = viewport.getRenderer();
   const volumeActor = viewport.getDefaultActor().actor;
   const mapper = volumeActor.getMapper();
   const image = mapper.getInputData();
   widget.copyImageDataDescription(image);
   const cropState = widget.getWidgetState().getCroppingPlanes();
   cropState.onModified(() => {
-    updateClippingPlanes(viewport, cropState.getPlanes());
+    updateCroppingPlanes(viewport, cropState.getPlanes());
   });
 
   mapper.removeAllClippingPlanes();
-  renderWindow.render();
+  // whenever the mapper is modified, as changing the clipping planes,
+  // this function will occurs
+  mapper.onModified(() => {
+    setTimeout(() => {
+      viewport.render();
+    }, 0);
+  });
   widget.set({ visibility: true });
 }
 
@@ -146,7 +143,6 @@ export function initializeCropping(viewport) {
   function widgetRegistration(e = undefined) {
     const action = e ? e.currentTarget.dataset.action : 'addWidget';
     const viewWidget = widgetManager[action](widget);
-    renderer.setDraw(true);
     if (viewWidget) {
       viewWidget.setDisplayCallback((coords) => {
         overlay.style.left = '-100px';
@@ -166,7 +162,6 @@ export function initializeCropping(viewport) {
       });
     }
     widgetManager.enablePicking();
-    renderWindow.render();
   }
   widgetRegistration();
   const viewWidget = widgetManager['addWidget'](widget);
@@ -174,5 +169,23 @@ export function initializeCropping(viewport) {
 
   hookVolumeActor(widget, viewport);
 
+  // This function updates the clipping planes in case the camera changes
+  viewport.element.addEventListener(Enums.Events.CAMERA_MODIFIED, () => {
+    const cropState = widget.getWidgetState().getCroppingPlanes();
+    updateCroppingPlanes(viewport, cropState.getPlanes());
+  });
+
+  widget.set({
+    faceHandlesEnabled: true,
+    edgeHandlesEnabled: true,
+    cornerHandlesEnabled: true,
+  });
+
+  viewport.resetVolumeViewportClippingRange();
+  bindEvents(viewport);
+
+  const renderingEngine = viewport.getRenderingEngine();
+  renderingEngine.changeContinuousDrawingState(true);
+  viewport.render();
   return { widgetManager, widget, viewWidget };
 }
